@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -33,6 +33,17 @@ interface Background {
   id: string;
   name: string;
   gradient: string;
+}
+
+interface CommunityProject {
+  id: number;
+  title: string;
+  authorName: string;
+  authorAvatar: string;
+  thumbnail: string;
+  likes: number;
+  views: number;
+  createdAt: string;
 }
 
 const codeBlocks: CodeBlock[] = [
@@ -108,6 +119,8 @@ const Index = () => {
   const [showSpriteDialog, setShowSpriteDialog] = useState(false);
   const [showBackgroundDialog, setShowBackgroundDialog] = useState(false);
   const [showSoundDialog, setShowSoundDialog] = useState(false);
+  const [communityProjects, setCommunityProjects] = useState<CommunityProject[]>([]);
+  const [isLoadingCommunity, setIsLoadingCommunity] = useState(true);
   
   const soundInputRef = useRef<HTMLInputElement>(null);
   const spriteImageRef = useRef<HTMLInputElement>(null);
@@ -210,6 +223,25 @@ const Index = () => {
   const removeBlock = (blockId: string) => {
     setWorkspace(workspace.filter(b => b.id !== blockId));
   };
+
+  useEffect(() => {
+    const loadCommunityProjects = async () => {
+      try {
+        setIsLoadingCommunity(true);
+        const response = await fetch('https://functions.poehali.dev/a82f2799-0cb0-4ae2-9204-f040f132639d');
+        const data = await response.json();
+        setCommunityProjects(data.projects || []);
+      } catch (error) {
+        console.error('Failed to load community projects:', error);
+      } finally {
+        setIsLoadingCommunity(false);
+      }
+    };
+
+    if (activeTab === 'community') {
+      loadCommunityProjects();
+    }
+  }, [activeTab]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -499,32 +531,38 @@ const Index = () => {
         <TabsContent value="community" className="h-full m-0 p-6">
           <div className="max-w-6xl mx-auto">
             <h2 className="text-2xl font-bold mb-6">Сообщество</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <Card key={i} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="bg-gradient-to-br from-accent/20 to-primary/20 aspect-video flex items-center justify-center">
-                    <div className="text-6xl">🌟</div>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="text-2xl">👤</div>
-                      <p className="font-medium text-sm">Пользователь {i}</p>
+            {isLoadingCommunity ? (
+              <div className="flex items-center justify-center py-12">
+                <Icon name="Loader2" size={48} className="animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {communityProjects.map((project) => (
+                  <Card key={project.id} className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
+                    <div className="bg-gradient-to-br from-accent/20 to-primary/20 aspect-video flex items-center justify-center">
+                      <div className="text-6xl">{project.thumbnail}</div>
                     </div>
-                    <h3 className="font-semibold mb-2">Крутая игра про космос</h3>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Icon name="Heart" size={14} />
-                        {Math.floor(Math.random() * 100)}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Icon name="Eye" size={14} />
-                        {Math.floor(Math.random() * 500)}
-                      </span>
+                    <div className="p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="text-2xl">{project.authorAvatar}</div>
+                        <p className="font-medium text-sm">{project.authorName}</p>
+                      </div>
+                      <h3 className="font-semibold mb-2">{project.title}</h3>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Icon name="Heart" size={14} />
+                          {project.likes}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Icon name="Eye" size={14} />
+                          {project.views}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         </TabsContent>
 
