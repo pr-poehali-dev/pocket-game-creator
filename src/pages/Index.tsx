@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Icon from '@/components/ui/icon';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface CodeBlock {
   id: string;
@@ -16,7 +19,20 @@ interface CodeBlock {
 interface Sprite {
   id: string;
   name: string;
-  emoji: string;
+  emoji?: string;
+  image?: string;
+}
+
+interface Sound {
+  id: string;
+  name: string;
+  url: string;
+}
+
+interface Background {
+  id: string;
+  name: string;
+  gradient: string;
 }
 
 const codeBlocks: CodeBlock[] = [
@@ -51,6 +67,32 @@ const categoryConfig = {
   variables: { name: 'Переменные', color: 'bg-scratch-variables', icon: 'Database' },
 };
 
+const spriteGallery = [
+  { id: 's1', name: 'Кот', emoji: '🐱' },
+  { id: 's2', name: 'Собака', emoji: '🐶' },
+  { id: 's3', name: 'Лиса', emoji: '🦊' },
+  { id: 's4', name: 'Панда', emoji: '🐼' },
+  { id: 's5', name: 'Лягушка', emoji: '🐸' },
+  { id: 's6', name: 'Единорог', emoji: '🦄' },
+  { id: 's7', name: 'Бабочка', emoji: '🦋' },
+  { id: 's8', name: 'Пчела', emoji: '🐝' },
+  { id: 's9', name: 'Рыба', emoji: '🐠' },
+  { id: 's10', name: 'Дракон', emoji: '🐉' },
+  { id: 's11', name: 'Птица', emoji: '🐦' },
+  { id: 's12', name: 'Ракета', emoji: '🚀' },
+];
+
+const backgroundGallery: Background[] = [
+  { id: 'bg1', name: 'Небо', gradient: 'from-blue-400 to-blue-200' },
+  { id: 'bg2', name: 'Закат', gradient: 'from-orange-500 to-pink-400' },
+  { id: 'bg3', name: 'Космос', gradient: 'from-purple-900 to-black' },
+  { id: 'bg4', name: 'Лес', gradient: 'from-green-600 to-green-300' },
+  { id: 'bg5', name: 'Океан', gradient: 'from-blue-600 to-cyan-400' },
+  { id: 'bg6', name: 'Пустыня', gradient: 'from-yellow-600 to-orange-300' },
+  { id: 'bg7', name: 'Рассвет', gradient: 'from-pink-300 to-yellow-200' },
+  { id: 'bg8', name: 'Ночь', gradient: 'from-indigo-900 to-purple-800' },
+];
+
 const Index = () => {
   const [activeTab, setActiveTab] = useState('editor');
   const [selectedCategory, setSelectedCategory] = useState<keyof typeof categoryConfig>('motion');
@@ -59,21 +101,114 @@ const Index = () => {
     { id: '1', name: 'Кот', emoji: '🐱' },
   ]);
   const [selectedSprite, setSelectedSprite] = useState('1');
+  const [draggedBlock, setDraggedBlock] = useState<CodeBlock | null>(null);
+  const [sounds, setSounds] = useState<Sound[]>([]);
+  const [currentBackground, setCurrentBackground] = useState<Background>(backgroundGallery[0]);
+  
+  const [showSpriteDialog, setShowSpriteDialog] = useState(false);
+  const [showBackgroundDialog, setShowBackgroundDialog] = useState(false);
+  const [showSoundDialog, setShowSoundDialog] = useState(false);
+  
+  const soundInputRef = useRef<HTMLInputElement>(null);
+  const spriteImageRef = useRef<HTMLInputElement>(null);
 
-  const handleBlockDrag = (block: CodeBlock) => {
+  const handleDragStart = (block: CodeBlock, e: React.DragEvent | React.TouchEvent) => {
+    setDraggedBlock(block);
+    if ('dataTransfer' in e) {
+      e.dataTransfer.effectAllowed = 'copy';
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedBlock(null);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedBlock) {
+      setWorkspace([...workspace, { ...draggedBlock, id: `${draggedBlock.id}-${Date.now()}` }]);
+      setDraggedBlock(null);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    e.preventDefault();
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (draggedBlock) {
+      const dropZone = document.getElementById('workspace-drop-zone');
+      const touch = e.changedTouches[0];
+      const element = document.elementFromPoint(touch.clientX, touch.clientY);
+      
+      if (dropZone && dropZone.contains(element)) {
+        setWorkspace([...workspace, { ...draggedBlock, id: `${draggedBlock.id}-${Date.now()}` }]);
+      }
+      setDraggedBlock(null);
+    }
+  };
+
+  const handleBlockClick = (block: CodeBlock) => {
     setWorkspace([...workspace, { ...block, id: `${block.id}-${Date.now()}` }]);
   };
 
-  const addSprite = () => {
-    const emojis = ['🐶', '🦊', '🐼', '🐸', '🦄', '🦋', '🐝', '🐠'];
-    const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+  const addSpriteFromGallery = (sprite: typeof spriteGallery[0]) => {
     const newSprite = {
       id: Date.now().toString(),
-      name: `Спрайт ${sprites.length + 1}`,
-      emoji: randomEmoji,
+      name: sprite.name,
+      emoji: sprite.emoji,
     };
     setSprites([...sprites, newSprite]);
     setSelectedSprite(newSprite.id);
+    setShowSpriteDialog(false);
+  };
+
+  const handleSpriteImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const newSprite = {
+          id: Date.now().toString(),
+          name: file.name.replace(/\.[^/.]+$/, ''),
+          image: event.target?.result as string,
+        };
+        setSprites([...sprites, newSprite]);
+        setSelectedSprite(newSprite.id);
+        setShowSpriteDialog(false);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSoundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('audio/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const newSound = {
+          id: Date.now().toString(),
+          name: file.name.replace(/\.[^/.]+$/, ''),
+          url: event.target?.result as string,
+        };
+        setSounds([...sounds, newSound]);
+        setShowSoundDialog(false);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const selectBackground = (bg: Background) => {
+    setCurrentBackground(bg);
+    setShowBackgroundDialog(false);
+  };
+
+  const removeBlock = (blockId: string) => {
+    setWorkspace(workspace.filter(b => b.id !== blockId));
   };
 
   return (
@@ -166,14 +301,19 @@ const Index = () => {
                   {codeBlocks
                     .filter(block => block.category === selectedCategory)
                     .map(block => (
-                      <Button
+                      <div
                         key={block.id}
-                        variant="outline"
-                        className={`w-full justify-start ${categoryConfig[block.category].color} text-white hover:opacity-80 border-0 shadow-md cursor-move`}
-                        onClick={() => handleBlockDrag(block)}
+                        draggable
+                        onDragStart={(e) => handleDragStart(block, e)}
+                        onDragEnd={handleDragEnd}
+                        onTouchStart={(e) => handleDragStart(block, e)}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                        onClick={() => handleBlockClick(block)}
+                        className={`w-full p-3 rounded-lg text-left ${categoryConfig[block.category].color} text-white hover:opacity-80 border-0 shadow-md cursor-move transition-transform active:scale-95 select-none`}
                       >
                         {block.label}
-                      </Button>
+                      </div>
                     ))}
                 </div>
               </ScrollArea>
@@ -181,22 +321,35 @@ const Index = () => {
 
             <div className="bg-gradient-to-br from-background to-muted/30 p-6">
               <div className="h-full flex flex-col">
-                <div className="flex-1 bg-white rounded-lg shadow-lg border p-6 mb-4">
+                <div 
+                  id="workspace-drop-zone"
+                  className="flex-1 bg-white rounded-lg shadow-lg border p-6 mb-4"
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                >
                   <h3 className="text-sm font-semibold text-muted-foreground mb-4">РАБОЧАЯ ОБЛАСТЬ</h3>
                   <ScrollArea className="h-[calc(100%-2rem)]">
                     {workspace.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-12">
                         <Icon name="MousePointerClick" size={48} className="mb-4 opacity-50" />
-                        <p className="text-center">Перетащите блоки сюда<br />чтобы создать программу</p>
+                        <p className="text-center">Перетащите блоки сюда<br />или нажмите на них</p>
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {workspace.map((block, idx) => (
+                        {workspace.map((block) => (
                           <div
                             key={block.id}
-                            className={`${categoryConfig[block.category].color} text-white p-3 rounded-lg shadow-md animate-scale-in`}
+                            className={`${categoryConfig[block.category].color} text-white p-3 rounded-lg shadow-md animate-scale-in flex items-center justify-between group`}
                           >
-                            {block.label}
+                            <span>{block.label}</span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 hover:bg-white/20"
+                              onClick={() => removeBlock(block.id)}
+                            >
+                              <Icon name="X" size={14} />
+                            </Button>
                           </div>
                         ))}
                       </div>
@@ -208,15 +361,28 @@ const Index = () => {
 
             <div className="border-l bg-white flex flex-col">
               <div className="p-4 border-b">
-                <div className="bg-gradient-to-br from-secondary/10 to-accent/10 rounded-lg aspect-video border-2 border-dashed border-muted-foreground/30 flex items-center justify-center mb-4">
+                <div 
+                  className={`bg-gradient-to-br ${currentBackground.gradient} rounded-lg aspect-video border-2 border-muted-foreground/30 flex items-center justify-center mb-4 relative cursor-pointer hover:border-primary transition-colors`}
+                  onClick={() => setShowBackgroundDialog(true)}
+                >
                   <div className="text-center">
-                    <div className="text-6xl mb-2">{sprites.find(s => s.id === selectedSprite)?.emoji}</div>
-                    <p className="text-xs text-muted-foreground">Сцена</p>
+                    <div className="text-6xl mb-2">
+                      {sprites.find(s => s.id === selectedSprite)?.image ? (
+                        <img 
+                          src={sprites.find(s => s.id === selectedSprite)?.image} 
+                          alt="sprite" 
+                          className="w-16 h-16 object-contain mx-auto"
+                        />
+                      ) : (
+                        sprites.find(s => s.id === selectedSprite)?.emoji
+                      )}
+                    </div>
+                    <p className="text-xs text-white/80 font-medium bg-black/20 px-2 py-1 rounded">Сцена</p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-semibold text-sm">Спрайты</h3>
-                  <Button size="sm" variant="outline" onClick={addSprite}>
+                  <Button size="sm" variant="outline" onClick={() => setShowSpriteDialog(true)}>
                     <Icon name="Plus" size={14} />
                   </Button>
                 </div>
@@ -233,7 +399,11 @@ const Index = () => {
                       onClick={() => setSelectedSprite(sprite.id)}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="text-3xl">{sprite.emoji}</div>
+                        {sprite.image ? (
+                          <img src={sprite.image} alt={sprite.name} className="w-10 h-10 object-contain" />
+                        ) : (
+                          <div className="text-3xl">{sprite.emoji}</div>
+                        )}
                         <div className="flex-1">
                           <p className="font-medium text-sm">{sprite.name}</p>
                           <p className="text-xs text-muted-foreground">Спрайт</p>
@@ -248,17 +418,23 @@ const Index = () => {
                 <div>
                   <h3 className="font-semibold text-sm mb-3">Библиотека</h3>
                   <div className="space-y-2">
-                    <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full justify-start"
+                      onClick={() => setShowBackgroundDialog(true)}
+                    >
                       <Icon name="Image" size={16} className="mr-2" />
-                      Фоны
+                      Фоны ({backgroundGallery.length})
                     </Button>
-                    <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full justify-start"
+                      onClick={() => setShowSoundDialog(true)}
+                    >
                       <Icon name="Music" size={16} className="mr-2" />
-                      Звуки
-                    </Button>
-                    <Button variant="outline" size="sm" className="w-full justify-start">
-                      <Icon name="FileImage" size={16} className="mr-2" />
-                      Костюмы
+                      Звуки ({sounds.length})
                     </Button>
                   </div>
                 </div>
@@ -407,6 +583,105 @@ const Index = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={showSpriteDialog} onOpenChange={setShowSpriteDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Добавить спрайт</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Выбрать из галереи</Label>
+              <div className="grid grid-cols-4 gap-3 mt-2">
+                {spriteGallery.map((sprite) => (
+                  <Card
+                    key={sprite.id}
+                    className="p-4 cursor-pointer hover:bg-primary/5 hover:border-primary transition-all text-center"
+                    onClick={() => addSpriteFromGallery(sprite)}
+                  >
+                    <div className="text-4xl mb-2">{sprite.emoji}</div>
+                    <p className="text-xs font-medium">{sprite.name}</p>
+                  </Card>
+                ))}
+              </div>
+            </div>
+            <Separator />
+            <div>
+              <Label>Загрузить свое изображение</Label>
+              <Input
+                ref={spriteImageRef}
+                type="file"
+                accept="image/*"
+                className="mt-2"
+                onChange={handleSpriteImageUpload}
+              />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showBackgroundDialog} onOpenChange={setShowBackgroundDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Выбрать фон</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4">
+            {backgroundGallery.map((bg) => (
+              <Card
+                key={bg.id}
+                className="cursor-pointer hover:ring-2 hover:ring-primary transition-all overflow-hidden"
+                onClick={() => selectBackground(bg)}
+              >
+                <div className={`h-32 bg-gradient-to-br ${bg.gradient} flex items-center justify-center`}>
+                  <p className="text-white font-semibold text-lg drop-shadow-lg">{bg.name}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showSoundDialog} onOpenChange={setShowSoundDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Добавить звук</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Загрузить MP3 файл</Label>
+              <Input
+                ref={soundInputRef}
+                type="file"
+                accept="audio/mp3,audio/mpeg,audio/wav"
+                className="mt-2"
+                onChange={handleSoundUpload}
+              />
+              <p className="text-xs text-muted-foreground mt-1">Поддерживаются форматы: MP3, WAV</p>
+            </div>
+            {sounds.length > 0 && (
+              <>
+                <Separator />
+                <div>
+                  <Label>Мои звуки</Label>
+                  <div className="space-y-2 mt-2">
+                    {sounds.map((sound) => (
+                      <Card key={sound.id} className="p-3">
+                        <div className="flex items-center gap-3">
+                          <Icon name="Music" size={20} className="text-primary" />
+                          <p className="flex-1 text-sm font-medium">{sound.name}</p>
+                          <Button size="sm" variant="outline">
+                            <Icon name="Play" size={14} />
+                          </Button>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
